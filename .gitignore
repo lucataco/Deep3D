@@ -133,3 +133,5 @@ dmypy.json
 /tmp
 /result
 /results
+
+.cog
