@@ -1,13 +1,13 @@
 import os
-import time
-import argparse
-from tqdm import tqdm
-
-import numpy as np
 import cv2
 import torch
+import argparse
 
-from data import transform,impro
+import subprocess
+import numpy as np
+from tqdm import tqdm
+
+from data import transform, impro
 from utils import util,ffmpeg
 
 parser = argparse.ArgumentParser()
@@ -41,20 +41,6 @@ util.makedirs(os.path.split(opt.out)[0])
 ffmpeg.video2voice(opt.video,os.path.join(opt.tmpdir, 'tmp.wav'))
 
 #init
-tips = []
-cap = cv2.VideoCapture('./medias/tips_30.mp4')
-while(True):
-    ret, tip = cap.read()
-    if ret:
-        tips.append(torch.from_numpy(cv2.resize(tip,(out_width,int(out_width*200/3840)),interpolation=cv2.INTER_LANCZOS4)))
-    else:
-        break
-tip_h = tips[0].shape[0]
-tip_w = tips[0].shape[1]
-tip_background = torch.ones((3,tip_h,tip_w))
-if opt.gpu_id >= 0:
-    tip_background = tip_background.to(opt.gpu_id).half()
-
 alpha = 5
 cap = cv2.VideoCapture(opt.video)
 frames_pool = []
@@ -64,7 +50,6 @@ for i in range(alpha*2+1):
     if height != out_height or width != out_width:
         cur_frame = cv2.resize(cur_frame,(out_width,out_height),interpolation=cv2.INTER_LANCZOS4)
     frames_pool.append(torch.from_numpy(cur_frame))
-
 
 x0 = frames_pool[0]
 if opt.gpu_id >= 0:
@@ -106,13 +91,6 @@ for frame in tqdm(range(video_length)):
     
     left = x3
     right = out[0]
-    if tips:
-        tip = tips.pop(0)
-        if opt.gpu_id >= 0:
-            tip = tip.to(opt.gpu_id).half()
-        tip = process(tip)
-        left[:,out_height-tip_h:out_height,:] = left[:,out_height-tip_h:out_height,:]*(1-tip) + tip_background*tip
-        right[:,out_height-tip_h:out_height,:] = right[:,out_height-tip_h:out_height,:]*(1-tip) + tip_background*tip
 
     if opt.inv:
         pred = torch.cat((right,left),dim=2)
